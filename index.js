@@ -3,15 +3,18 @@ const app = express()
 require('dotenv').config()
 const port = process.env.PORT || 5000
 const cors = require('cors')
-const jwt  = require('jsonwebtoken')
+const jwt = require('jsonwebtoken')
 const cookieParser = require('cookie-parser')
+
+
+app.use(express.json())
 app.use(cors({
-  origin:["http://localhost:5173","http://localhost:5174"],
+  origin:["http://localhost:5174", "http://localhost:5173jli"],
   credentials:true
 }
 ))
-app.use(express.json())
 app.use(cookieParser())
+
 
 
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
@@ -24,6 +27,23 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   }
 });
+const verifyToken = async(req , res , next) =>{
+  const token  = req.cookies?.token
+  if(!token){
+    return res.status(401).send({message : "I am not seeing in token"})
+  }
+   jwt.verify(token ,  process.env.ACCESS_SECRET , (err , decoded)=>{
+    if(err){
+      return res.status(401).send({message:"Unauthorized Access"})
+    }
+    console.log(decoded)
+    req.user = decoded
+    next()
+  })
+
+
+}
+
 
 async function run() {
   try {
@@ -49,23 +69,34 @@ async function run() {
        const result = await checkOutCollection.insertOne(service)
        res.send(result)
     })
-    app.post ('/jwt' , async(req,res) => {
-      const user = req.body
-      
-      
-      const token = jwt.sign(user , process.env.ACCESS_SECRET , {expiresIn : '1h'})
-      res
-      .cookie('token',token ,{
-        httpOnly:true,
-        secure:false,
-        
-      })
-      .send({result: true})
-
+    app.get('/checkOutServices' , async(req , res) => {
+      const cursor = checkOutCollection.find()
+      const result = await cursor.toArray()
+      res.send(result)
     })
-    app.get ('/checkOutServices/:email' , async(req,res) => {
+     app.post('/jwt' , async(req , res) => {
+         const user = req.body
+         console.log(user)
+         const token = jwt.sign(user , process.env.ACCESS_SECRET)
+         console.log(token)
+         res
+         .cookie("token" , token ,{
+          httpOnly:true,
+          secure:false
+         })
+         .send({success: true})
+
+         
+        
+
+     })
+     
+    app.get ('/checkOutServices/:email' ,verifyToken, async(req,res) => {
       const email = req.params.email
-      console.log('token', req.cookies.token)
+      if(email !== req.user.email){
+        return  res.status(403).send({message: 'forbidden access'})
+      }
+    
       const query = {email : email}
       const result = await checkOutCollection.find(query).toArray()
       res.send(result)
