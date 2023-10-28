@@ -6,7 +6,7 @@ const cors = require('cors')
 const jwt  = require('jsonwebtoken')
 const cookieParser = require('cookie-parser')
 app.use(cors({
-  origin:["http://localhost:5173"],
+  origin:["http://localhost:5173","http://localhost:5174"],
   credentials:true
 }
 ))
